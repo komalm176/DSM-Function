@@ -2,6 +2,10 @@
 Function-logic
 
 
+$env:PATH += ";C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8"
+
+
+
 & "C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8\func.exe" start
 
 
