@@ -2,6 +2,18 @@
 Function-logic
 
 
+& "C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8\func.exe" start
+
+
+[System.Environment]::SetEnvironmentVariable(
+  "PATH",
+  [System.Environment]::GetEnvironmentVariable("PATH","User") + ";C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8",
+  [System.EnvironmentVariableTarget]::User
+)
+
+
+
+
 $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
 
