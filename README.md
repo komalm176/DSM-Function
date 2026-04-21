@@ -2,6 +2,13 @@
 Function-logic
 
 
+set PATH=%PATH%;C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8
+
+cd C:\Users\KomalMehetre\source\repos\DSMTest\LogicApp\email-ingestion-function\EmailUpload.Functions.Refactored\EmailUpload.Functions
+
+func start
+
+
 $env:PATH += ";C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8"
 
 
