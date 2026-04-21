@@ -2,6 +2,10 @@
 Function-logic
 
 
+"SqlConnectionString": "Server=(localdb)\\mssqllocaldb;Database=EmailProcessor;Integrated Security=True;TrustServerCertificate=True;"
+
+
+
 set PATH=%PATH%;C:\Users\KomalMehetre\.azurelogicapps\dependencies\FuncCoreTools\in-proc8
 
 cd C:\Users\KomalMehetre\source\repos\DSMTest\LogicApp\email-ingestion-function\EmailUpload.Functions.Refactored\EmailUpload.Functions
