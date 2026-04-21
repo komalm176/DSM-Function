@@ -2,6 +2,28 @@
 Function-logic
 
 
+
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage"                   : "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME"              : "dotnet-isolated",
+    "ServiceBusConnection"                  : "<YOUR-SERVICE-BUS-CONNECTION-STRING>",
+    "ServiceBusQueueName"                   : "email-ingestion-queue",
+    "SqlConnectionString"                   : "Server=(localdb)\\mssqllocaldb;Database=EmailProcessor;Integrated Security=True;TrustServerCertificate=True;",
+    "MaxScanRetries"                        : "3",
+    "MaxMoveRetries"                        : "3",
+    "LockRenewalIntervalSeconds"            : "30",
+    "ProcessedContainer"                    : "email-processed",
+    "QuarantineContainer"                   : "email-quarantine",
+    "ScanPendingContainer"                  : "email-scanpending",
+    "StagingContainer"                      : "email-staging",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" : "<YOUR-APP-INSIGHTS-CONNECTION-STRING>"
+  }
+}
+
+
+
 "SqlConnectionString": "Server=(localdb)\\mssqllocaldb;Database=EmailProcessor;Integrated Security=True;TrustServerCertificate=True;"
 
 
