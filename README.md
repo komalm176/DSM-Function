@@ -2,6 +2,20 @@
 Function-logic
 
 
+{
+  "MessageId": "TEST001-outlook-com",
+  "SenderAddress": "test@company.com",
+  "EmailSubject": "Test Email",
+  "EmailBody": "Test body",
+  "EmailAttachmentPath": null,
+  "EmailStatus": null,
+  "EmailStatusReason": null,
+  "SendDateTime": "2024-04-18T12:00:00Z",
+  "CreatedDateTime": null
+}
+
+
+
 
 {
   "IsEncrypted": false,
