@@ -1,6 +1,12 @@
 # DSM-Function
 Function-logic
 
+
+$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+
+
+
+
 cd C:\Users\KomalMehetre\source\repos\DSMTest\LogicApp\email-ingestion-function\EmailUpload.Functions
 
 dotnet publish -c Release
