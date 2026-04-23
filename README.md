@@ -2,6 +2,22 @@
 Function-logic
 
 
+{
+  "type": "Compose",
+  "inputs": {
+    "messageId": "@outputs('Sanitise_MessageId')",
+    "emailSubject": "@item()?['Subject']",
+    "emailBody": "@item()?['Body']",
+    "senderAddress": "@outputs('Extract_Sender_Address')",
+    "receivedDateTime": "@item()?['receivedDateTime']",
+    "blobFolderPath": "@outputs('Build_Folder_Path')"
+  }
+}
+
+
+
+
+
 
 
 @base64(string(json(concat(
