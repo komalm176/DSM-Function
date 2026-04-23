@@ -2,6 +2,12 @@
 Function-logic
 
 
+"inputs": "@coalesce(item()?['from']?['emailAddress']?['address'], 'unknown@unknown.com')",
+
+
+
+
+
 {
   "type": "Compose",
   "inputs": {
