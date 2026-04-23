@@ -2,6 +2,20 @@
 Function-logic
 
 
+
+
+@base64(string(json(concat(
+  '{"messageId":"', outputs('Sanitise_MessageId'),
+  '","emailSubject":"', item()?['Subject'],
+  '","emailBody":"', item()?['Body'],
+  '","senderAddress":"', outputs('Extract_Sender_Address'),
+  '","receivedDateTime":"', item()?['receivedDateTime'],
+  '","blobFolderPath":"', outputs('Build_Folder_Path'),
+  '"}'
+))))
+
+
+
 {
   "MessageId": "TEST001-outlook-com",
   "SenderAddress": "test@company.com",
