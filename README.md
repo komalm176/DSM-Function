@@ -1,5 +1,28 @@
 # DSM-Function
-Function-logic
+Function-logicapp
+
+
+# Check if basic auth is enabled for SCM
+az functionapp config access-restriction show `
+  --name func-eus2-dsn-dev-06 `
+  --resource-group rg-east-datalake-dev-01
+
+
+
+az resource update `
+  --resource-group rg-east-datalake-dev-01 `
+  --name func-eus2-dsn-dev-06 `
+  --resource-type "Microsoft.Web/sites" `
+  --set properties.basicPublishingCredentialsPolicies.scm.allow=true
+
+
+az functionapp deployment source config-zip `
+  --name func-eus2-dsn-dev-06 `
+  --resource-group rg-east-datalake-dev-01 `
+  --src ./publish.zip `
+  --build-remote true
+
+
 
 
 
