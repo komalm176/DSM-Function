@@ -2,6 +2,15 @@
 Function-logicapp
 
 
+# Check basic auth status for SCM
+az resource show `
+  --resource-group rg-east-datalake-dev-01 `
+  --name func-eus2-dsn-dev-06/basicPublishingCredentialsPolicies/scm `
+  --resource-type "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+
+
+
+
 # Check if basic auth is enabled for SCM
 az functionapp config access-restriction show `
   --name func-eus2-dsn-dev-06 `
