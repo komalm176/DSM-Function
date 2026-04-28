@@ -2,6 +2,11 @@
 Function-logicapp
 
 
+cd C:\Users\KomalMehetre\source\repos
+rmdir /s /q pdp-documentstorage-api
+git clone https://dev.azure.com/techcaqhorg/Nexus-Platform-Apps/_git/pdp-documentstorage-api
+
+
 az functionapp deployment source config-zip `
   --name func-eus2-dsn-dev-06 `
   --resource-group rg-east-datalake-dev-01 `
