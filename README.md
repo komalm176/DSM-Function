@@ -2,6 +2,13 @@
 Function-logicapp
 
 
+az functionapp deployment source config-zip `
+  --name func-eus2-dsn-dev-06 `
+  --resource-group rg-east-datalake-dev-01 `
+  --src ./publish.zip
+
+
+
 az network private-endpoint list `
   --resource-group rg-east-datalake-dev-01 `
   --query "[?contains(name, 'func')]" `
