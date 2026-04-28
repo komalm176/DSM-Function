@@ -2,6 +2,14 @@
 Function-logicapp
 
 
+az resource update `
+  --resource-group rg-east-datalake-dev-01 `
+  --name func-eus2-dsn-dev-06/basicPublishingCredentialsPolicies/scm `
+  --resource-type "Microsoft.Web/sites/basicPublishingCredentialsPolicies" `
+  --set properties.allow=true
+
+
+
 # Check basic auth status for SCM
 az resource show `
   --resource-group rg-east-datalake-dev-01 `
