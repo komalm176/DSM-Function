@@ -2,6 +2,21 @@
 Function-logicapp
 
 
+az network private-endpoint list `
+  --resource-group rg-east-datalake-dev-01 `
+  --query "[?contains(name, 'func')]" `
+  --output table
+
+
+az functionapp deploy `
+  --name func-eus2-dsn-dev-06 `
+  --resource-group rg-east-datalake-dev-01 `
+  --src-path ./publish.zip `
+  --type zip
+
+
+
+
 az resource update `
   --resource-group rg-east-datalake-dev-01 `
   --name func-eus2-dsn-dev-06/basicPublishingCredentialsPolicies/scm `
