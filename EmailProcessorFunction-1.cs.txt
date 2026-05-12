@@ -1,0 +1,346 @@
+using System;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Azure.Messaging.ServiceBus;
+using EmailUpload.Functions.Helpers;
+using EmailUpload.Functions.Models;
+using EmailUpload.Functions.Services;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
+
+namespace EmailUpload.Functions
+{
+    /// <summary>
+    /// Azure Function triggered by Service Bus Queue.
+    /// Orchestrates email attachment processing — delegates all blob and SQL
+    /// operations to <see cref="BlobService"/> and <see cref="SqlService"/>.
+    /// </summary>
+    public class EmailProcessorFunction
+    {
+        private readonly ILogger<EmailProcessorFunction> _logger;
+        private readonly IBlobService                    _blobService;
+        private readonly ISqlService                     _sqlService;
+
+        private static readonly int MaxScanRetries =
+            int.TryParse(Environment.GetEnvironmentVariable("MaxScanRetries"), out int s) ? s : 3;
+
+        public EmailProcessorFunction(
+            ILogger<EmailProcessorFunction> logger,
+            IBlobService                    blobService,
+            ISqlService                     sqlService)
+        {
+            _logger      = logger;
+            _blobService = blobService;
+            _sqlService  = sqlService;
+        }
+
+        // ---------------------------------------------------------------
+        // Trigger
+        // ---------------------------------------------------------------
+
+        [Function("EmailProcessor")]
+        public async Task Run(
+            [ServiceBusTrigger("%ServiceBusQueueName%", Connection = "ServiceBusConnection")]
+            ServiceBusReceivedMessage message,
+            ServiceBusMessageActions  messageActions)
+        {
+            _logger.LogInformation("EmailProcessor triggered. MessageId: {Id}", message.MessageId);
+
+            // -- 1. Deserialise payload --
+            EmailMessagePayload payload;
+            try
+            {
+                payload = JsonSerializer.Deserialize<EmailMessagePayload>(message.Body.ToString())
+                    ?? throw new InvalidOperationException("Payload deserialised to null.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex, "Failed to deserialise Service Bus message. Dead-lettering.");
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: "DeserializationError",
+                    deadLetterErrorDescription: ex.Message);
+                return;
+            }
+
+            // -- 2. Validate MessageId --
+            if (string.IsNullOrWhiteSpace(payload.MessageId))
+            {
+                _logger.LogCritical("MessageId is null or empty. Dead-lettering.");
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: "InvalidPayload",
+                    deadLetterErrorDescription: "MessageId is null or empty.");
+                return;
+            }
+
+            // -- 3. Stamp CreatedDateTime and default SendDateTime --
+            payload.CreatedDateTime = DateTime.UtcNow;
+            if (payload.SendDateTime == default)
+            {
+                _logger.LogWarning(
+                    "SendDateTime missing for MessageId={Id}. Defaulting to UtcNow.", payload.MessageId);
+                payload.SendDateTime = DateTime.UtcNow;
+            }
+
+            // -- 4. Idempotency check --
+            if (await _sqlService.MessageIdExistsAsync(payload.MessageId))
+            {
+                _logger.LogWarning(
+                    "MessageId {Id} already exists in DB. Skipping duplicate.", payload.MessageId);
+                await messageActions.CompleteMessageAsync(message);
+                return;
+            }
+
+            await ProcessEmailAsync(payload, message, messageActions);
+        }
+
+        // ---------------------------------------------------------------
+        // Core processing
+        // ---------------------------------------------------------------
+
+        private async Task ProcessEmailAsync(
+            EmailMessagePayload      payload,
+            ServiceBusReceivedMessage message,
+            ServiceBusMessageActions  messageActions)
+        {
+            // -- 5. Recovery — SQL failed after blobs were already moved --
+            if (!string.IsNullOrWhiteSpace(payload.EmailAttachmentPath))
+            {
+                (_, string folderPrefixCheck) = BlobService.ParseContainerAndPrefix(payload.EmailAttachmentPath);
+                var recovery = await _blobService.FindBlobsInDestinationAsync(folderPrefixCheck);
+
+                if (recovery.HasValue)
+                {
+                    _logger.LogWarning(
+                        "Recovery: Blobs for MessageId={Id} already in '{Container}'. Re-inserting DB record.",
+                        payload.MessageId, recovery.Value.DestFolder);
+
+                    payload.EmailAttachmentPath = recovery.Value.DestFolder;
+                    await InsertAndCompleteAsync(payload, recovery.Value.Status,
+                        "Recovered: blobs moved in a previous attempt but DB insert had failed.",
+                        message, messageActions);
+                    return;
+                }
+            }
+
+            // -- 6. No attachment — MissingAttachment --
+            if (string.IsNullOrWhiteSpace(payload.EmailAttachmentPath))
+            {
+                _logger.LogWarning(
+                    "No attachment folder for MessageId: {Id}", payload.MessageId);
+                await InsertAndCompleteAsync(payload, EmailStatus.MissingAttachment,
+                    "No attachment path provided in the message payload.",
+                    message, messageActions);
+                return;
+            }
+
+            // -- 7. Parse staging path --
+            (string sourceContainer, string folderPrefix) =
+                BlobService.ParseContainerAndPrefix(payload.EmailAttachmentPath);
+
+            // -- 8. Verify staging container exists --
+            if (!await _blobService.ContainerExistsAsync(sourceContainer))
+            {
+                _logger.LogCritical(
+                    "Staging container '{Container}' does not exist. Dead-lettering MessageId={Id}.",
+                    sourceContainer, payload.MessageId);
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: "StagingContainerMissing",
+                    deadLetterErrorDescription: $"Staging container '{sourceContainer}' does not exist.");
+                return;
+            }
+
+            // -- 9. List all blobs --
+            var blobs = await _blobService.GetBlobsFromFolderAsync(sourceContainer, folderPrefix);
+
+            // -- 10. Empty folder — MissingAttachment --
+            if (blobs.Count == 0)
+            {
+                _logger.LogWarning(
+                    "No blobs found at {Path} for MessageId={Id}",
+                    payload.EmailAttachmentPath, payload.MessageId);
+                await InsertAndCompleteAsync(payload, EmailStatus.MissingAttachment,
+                    "Attachment folder exists but contains no files.",
+                    message, messageActions);
+                return;
+            }
+
+            // -- 11. Categorise blobs --
+            var scanningBlobs  = blobs.Where(b => b.ScanResult is "Scanning" or null).ToList();
+            var maliciousBlobs = blobs.Where(b => b.ScanResult == "Malicious").ToList();
+            var cleanBlobs     = blobs.Where(b => b.ScanResult == "NoThreatsFound").ToList();
+
+            _logger.LogInformation(
+                "MessageId={Id} — Scanning={S}, Malicious={M}, Clean={C}",
+                payload.MessageId, scanningBlobs.Count, maliciousBlobs.Count, cleanBlobs.Count);
+
+            // ---------------------------------------------------------------
+            // PRIORITY 1 — Any attachment still scanning?
+            // ---------------------------------------------------------------
+            if (scanningBlobs.Any())
+            {
+                bool maxRetriesReached = scanningBlobs.Any(b => b.RetryCount >= MaxScanRetries);
+
+                if (maxRetriesReached)
+                {
+                    _logger.LogCritical(
+                        "Max scan retries ({Max}) reached. Moving all to ScanPending. MessageId={Id}.",
+                        MaxScanRetries, payload.MessageId);
+
+                    string? destFolder = await _blobService.MoveAllBlobsWithRollbackAsync(
+                        blobs, _blobService.ScanPendingContainer, folderPrefix);
+
+                    if (destFolder is null)
+                    {
+                        await InsertAndDeadLetterAsync(payload, EmailStatus.MoveFailed,
+                            "Failed to move blobs to scan-pending after retries. Rolled back.",
+                            message, messageActions);
+                        return;
+                    }
+
+                    await _blobService.DeleteStagingFolderAsync(sourceContainer, folderPrefix);
+                    payload.EmailAttachmentPath = destFolder;
+                    await InsertAndCompleteAsync(payload, EmailStatus.ScanPending,
+                        $"Defender scan did not complete after {MaxScanRetries} retries.",
+                        message, messageActions);
+                }
+                else
+                {
+                    bool metadataUpdated = await _blobService.IncrementRetryCountAsync(
+                        scanningBlobs, payload.MessageId);
+
+                    if (!metadataUpdated)
+                    {
+                        _logger.LogCritical(
+                            "Failed to update RetryCount. Dead-lettering MessageId={Id}.", payload.MessageId);
+                        await messageActions.DeadLetterMessageAsync(message,
+                            deadLetterReason: "MetadataUpdateFailed",
+                            deadLetterErrorDescription: "Failed to update RetryCount after retries.");
+                        return;
+                    }
+
+                    _logger.LogInformation(
+                        "Scan not yet complete. Abandoning for retry. MessageId={Id}", payload.MessageId);
+                    await messageActions.AbandonMessageAsync(message);
+                }
+
+                return;
+            }
+
+            // ---------------------------------------------------------------
+            // PRIORITY 2 — Any malicious?
+            // ---------------------------------------------------------------
+            if (maliciousBlobs.Any())
+            {
+                _logger.LogCritical(
+                    "{Count} malicious blob(s) found. Moving all to quarantine. MessageId={Id}.",
+                    maliciousBlobs.Count, payload.MessageId);
+
+                string? destFolder = await _blobService.MoveAllBlobsWithRollbackAsync(
+                    blobs, _blobService.QuarantineContainer, folderPrefix);
+
+                if (destFolder is null)
+                {
+                    await InsertAndDeadLetterAsync(payload, EmailStatus.MoveFailed,
+                        "Failed to move blobs to quarantine after retries. Rolled back.",
+                        message, messageActions);
+                    return;
+                }
+
+                await _blobService.DeleteStagingFolderAsync(sourceContainer, folderPrefix);
+                payload.EmailAttachmentPath = destFolder;
+                await InsertAndCompleteAsync(payload, EmailStatus.Malicious,
+                    $"{maliciousBlobs.Count} attachment(s) failed Defender scan and were quarantined.",
+                    message, messageActions);
+                return;
+            }
+
+            // ---------------------------------------------------------------
+            // PRIORITY 3 — All clean → convert to PDF + move to processed
+            // ---------------------------------------------------------------
+            _logger.LogInformation(
+                "All {Count} blob(s) clean. Moving to processed. MessageId={Id}.",
+                cleanBlobs.Count, payload.MessageId);
+
+            List<string>? processedBlobPaths = await _blobService.MoveAndExtractCleanBlobsAsync(
+                cleanBlobs, folderPrefix);
+
+            if (processedBlobPaths is null)
+            {
+                await InsertAndDeadLetterAsync(payload, EmailStatus.MoveFailed,
+                    "Failed to move blobs to processed container after retries. Rolled back.",
+                    message, messageActions);
+                return;
+            }
+
+            await _blobService.DeleteStagingFolderAsync(sourceContainer, folderPrefix);
+
+            // Insert one DB record per processed file
+            bool allInserted = true;
+            foreach (string filePath in processedBlobPaths)
+            {
+                payload.EmailAttachmentPath = filePath;
+
+                bool inserted = await _sqlService.InsertEmailDocumentAsync(
+                    payload, EmailStatus.ReadyForUpload, statusReason: null);
+
+                if (!inserted)
+                {
+                    _logger.LogCritical(
+                        "SQL insert failed for file {Path}. MessageId={Id}.",
+                        filePath, payload.MessageId);
+                    allInserted = false;
+                }
+            }
+
+            if (!allInserted)
+            {
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: "SqlInsertFailed",
+                    deadLetterErrorDescription: "One or more file DB inserts failed after retries.");
+                return;
+            }
+
+            await messageActions.CompleteMessageAsync(message);
+        }
+
+        // ---------------------------------------------------------------
+        // Shared helpers
+        // ---------------------------------------------------------------
+
+        private async Task InsertAndCompleteAsync(
+            EmailMessagePayload       payload,
+            string                    status,
+            string?                   statusReason,
+            ServiceBusReceivedMessage message,
+            ServiceBusMessageActions  messageActions)
+        {
+            bool inserted = await _sqlService.InsertEmailDocumentAsync(payload, status, statusReason);
+
+            if (!inserted)
+            {
+                _logger.LogCritical(
+                    "SQL insert failed for MessageId={Id}. Dead-lettering.", payload.MessageId);
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: "SqlInsertFailed",
+                    deadLetterErrorDescription: "Failed to insert EmailDocument after retries.");
+                return;
+            }
+
+            await messageActions.CompleteMessageAsync(message);
+        }
+
+        private async Task InsertAndDeadLetterAsync(
+            EmailMessagePayload       payload,
+            string                    status,
+            string?                   statusReason,
+            ServiceBusReceivedMessage message,
+            ServiceBusMessageActions  messageActions)
+        {
+            await _sqlService.InsertEmailDocumentAsync(payload, status, statusReason);
+            await messageActions.DeadLetterMessageAsync(message,
+                deadLetterReason: status,
+                deadLetterErrorDescription: statusReason);
+        }
+    }
+}
