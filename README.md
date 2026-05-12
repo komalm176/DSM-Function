@@ -1,5 +1,51 @@
 # DSM-Function
-Function-logicapp
+Function-logic
+
+
+private static byte[] ConvertToPdf(byte[] fileContent, string fileName)
+{
+    bool isPdf = fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+
+    if (isPdf)
+    {
+        using var ms = new MemoryStream();
+        // Use full namespace to avoid ambiguity with Syncfusion
+        var outputDocument = new iTextSharp.text.Document();
+        var writer = new iTextSharp.text.pdf.PdfCopy(outputDocument, ms);
+        outputDocument.Open();
+
+        // REMOVED: iTextSharp.text.pdf.PdfReader.UnethicalReading = true;
+        var reader = new iTextSharp.text.pdf.PdfReader(fileContent);
+
+        for (int i = 1; i <= reader.NumberOfPages; i++)
+            writer.AddPage(writer.GetImportedPage(reader, i));
+
+        writer.FreeReader(reader);
+        reader.Close();
+        writer.Close();
+        outputDocument.Close();
+        ms.Flush();
+
+        return ms.ToArray();
+    }
+
+    // Image → PDF using Syncfusion with full namespaces
+    using var memoryStream = new MemoryStream(fileContent);
+    var pdfDoc = new Syncfusion.Pdf.PdfDocument();
+    var pdfPage = pdfDoc.Pages.Add();
+    var graphics = pdfPage.Graphics;
+
+    // Load image directly as stream — no FrameCount/ActiveFrame needed
+    var pdfImage = new Syncfusion.Pdf.Graphics.PdfBitmap(memoryStream);
+    graphics.DrawImage(pdfImage, 0, 0, pdfPage.GetClientSize().Width, pdfPage.GetClientSize().Height);
+
+    using var pdfStream = new MemoryStream();
+    pdfDoc.Save(pdfStream);
+    pdfDoc.Close(true);
+
+    return pdfStream.ToArray();
+}
+
 
 
 cd C:\Users\KomalMehetre\source\repos
