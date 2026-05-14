@@ -1,7 +1,7 @@
 # DSM-Function
 Fun
 
-
+Update BlobServiceStaticTests.cs (xUnit + Moq) to add tests for the new methods in BlobService.cs: MoveAndExtractCleanBlobsAsync, TryProcessZipBlobAsync, TryProcessZipEntryAsync, TryProcessSingleBlobAsync. Cover happy paths, failure paths, and IsEnabled logger branches. Match existing test patterns. Show complete updated file.
 
 ,😂
 
