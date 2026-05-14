@@ -1,5 +1,66 @@
 # DSM-Function
-Function-logic
+Fun
+
+
+
+,😂
+
+public async Task<List<string>?> MoveAndExtractCleanBlobsAsync(
+    IReadOnlyList<BlobScanInfo> blobs,
+    string folderPrefix)
+{
+    BlobContainerClient destContainerClient = _blobServiceClient.GetBlobContainerClient(_processedContainer);
+    await destContainerClient.CreateIfNotExistsAsync();
+    
+    var movedBlobNames = new List<string>();
+    var processedBlobPaths = new List<string>();
+    
+    foreach (BlobScanInfo blob in blobs)
+    {
+        bool isZip = blob.Item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        
+        bool success = isZip
+            ? await TryProcessZipBlobAsync(blob, destContainerClient, folderPrefix, movedBlobNames, processedBlobPaths)
+            : await TryProcessSingleBlobAsync(blob, destContainerClient, folderPrefix, movedBlobNames, processedBlobPaths);
+        
+        if (!success)
+        {
+            await RollbackMovedBlobsAsync(destContainerClient, movedBlobNames);
+            return null;
+        }
+    }
+    
+    return processedBlobPaths;
+}
+🤗
+
+private async Task<bool> TryProcessZipBlobAsync(
+    BlobScanInfo blob,
+    BlobContainerClient destContainerClient,
+    string folderPrefix,
+    List<string> movedBlobNames,
+    List<string> processedBlobPaths)
+{
+    // Move ALL the code from the `if (isZip) { ... }` block here.
+    // At the end of success paths: return true;
+    // In each catch that previously did "return null;" → return false;
+}
+
+private async Task<bool> TryProcessSingleBlobAsync(
+    BlobScanInfo blob,
+    BlobContainerClient destContainerClient,
+    string folderPrefix,
+    List<string> movedBlobNames,
+    List<string> processedBlobPaths)
+{
+    // Move ALL the code from the `else { ... }` block here (non-ZIP path).
+    // Success: return true;  Failure (catch): return false;
+}
+
+😍
+
+
+
 
 
 private static byte[] ConvertToPdf(byte[] fileContent, string fileName)
