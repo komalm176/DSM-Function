@@ -1,6 +1,18 @@
 # DSM-Function
 Fun
 
+
+SELECT 
+    dp.name AS principal_name,
+    dp.type_desc,
+    dp.authentication_type_desc,
+    USER_NAME(rm.role_principal_id) AS role_name
+FROM sys.database_principals dp
+LEFT JOIN sys.database_role_members rm 
+    ON dp.principal_id = rm.member_principal_id
+WHERE dp.name = 'func-eus2-dev-dsm-01';
+
+
 CREATE USER [func-eus2-dev-dsm-01] FROM EXTERNAL PROVIDER;
 ALTER ROLE db_datareader ADD MEMBER [func-eus2-dev-dsm-01];
 ALTER ROLE db_datawriter ADD MEMBER [func-eus2-dev-dsm-01];
