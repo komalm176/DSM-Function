@@ -1,6 +1,9 @@
 # DSM-Function
 Fun
 
+Server=tcp:sql-east-support-dev-01.database.windows.net,1433;Database=db-east-support-dev-01;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+
+
 Update BlobServiceStaticTests.cs (xUnit + Moq) to add tests for the new methods in BlobService.cs: MoveAndExtractCleanBlobsAsync, TryProcessZipBlobAsync, TryProcessZipEntryAsync, TryProcessSingleBlobAsync. Cover happy paths, failure paths, and IsEnabled logger branches. Match existing test patterns. Show complete updated file.
 
 ,😂
