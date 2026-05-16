@@ -1,6 +1,13 @@
 # DSM-Function
 Fun
 
+CREATE USER [func-eus2-dev-dsm-01] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [func-eus2-dev-dsm-01];
+ALTER ROLE db_datawriter ADD MEMBER [func-eus2-dev-dsm-01];
+
+
+
+
 Server=tcp:sql-east-support-dev-01.database.windows.net,1433;Database=db-east-support-dev-01;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
 
 
