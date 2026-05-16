@@ -1,6 +1,8 @@
 # DSM-Function
 Fun
 
+curl -s "$IDENTITY_ENDPOINT?resource=https://database.windows.net/&api-version=2019-08-01" \
+  -H "X-IDENTITY-HEADER: $IDENTITY_HEADER"
 
 SELECT 
     dp.name AS principal_name,
