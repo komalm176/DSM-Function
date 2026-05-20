@@ -1,6 +1,28 @@
 # DSM-Function
 Fun
 
+
+
+# Upload a tiny test file with a simple name
+echo "hello" > /tmp/smoke.txt
+az storage blob upload \
+  --account-name sftpdatalakedev01 \
+  --container-name email-scanpending \
+  --name smoke-test/smoke.txt \
+  --file /tmp/smoke.txt \
+  --auth-mode login
+
+# Wait ~2 minutes for Defender to scan, then check tags
+sleep 120
+
+az storage blob tag list \
+  --account-name sftpdatalakedev01 \
+  --container-name email-scanpending \
+  --name smoke-test/smoke.txt \
+  --auth-mode login -o table
+
+
+
 curl -s "$IDENTITY_ENDPOINT?resource=https://database.windows.net/&api-version=2019-08-01" \
   -H "X-IDENTITY-HEADER: $IDENTITY_HEADER"
 
