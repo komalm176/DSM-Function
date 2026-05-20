@@ -2,6 +2,14 @@
 F
 
 
+
+curl -i -H "Authorization: Bearer $TOKEN" -H "x-ms-version: 2024-11-04" "https://sftpdatalakedev01.blob.core.windows.net/email-scanpending/smoke-test/smoke.txt?comp=tags"
+
+
+TOKEN=$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)
+
+
+
 az storage blob tag list --account-name sftpdatalakedev01 --container-name email-scanpending --name smoke-test/smoke.txt --auth-mode login -o table
 
 
