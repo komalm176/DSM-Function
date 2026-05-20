@@ -2,6 +2,9 @@
 Fun
 
 
+az storage blob tag list --account-name sftpdatalakedev01 --container-name email-scanpending --name smoke-test/smoke.txt --auth-mode login -o table
+
+
 
 # Upload a tiny test file with a simple name
 echo "hello" > /tmp/smoke.txt
