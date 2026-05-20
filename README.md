@@ -5,8 +5,7 @@ F
 az storage blob tag list --account-name sftpdatalakedev01 --account-key "$KEY" --container-name email-scanpending --name smoke-test/smoke.txt -o table
 
 
-KEY=$(az storage account keys list --account-name sftpdatalakedev01 --resource-group rg-east-datalake-dev-01 --query "[0].value" -o tsv)
-
+KEY=$(az storage account keys list --account-name sftpdatalakedev01 --resource-group rg-east-datalake-dev-01 --subscription 8988b176-9eb0-4e96-8956-5e4bb60530cf --query "[0].value" -o tsv)
 
 curl -i -H "Authorization: Bearer $TOKEN" -H "x-ms-version: 2024-11-04" "https://sftpdatalakedev01.blob.core.windows.net/email-scanpending/smoke-test/smoke.txt?comp=tags"
 
