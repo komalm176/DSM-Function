@@ -1,5 +1,13 @@
 # DSM-Function
-Fun
+F
+
+
+az storage blob tag list --account-name sftpdatalakedev01 --container-name email-scanpending --name smoke-test/smoke.txt --auth-mode login -o table
+
+
+
+az storage account update --name sftpdatalakedev01 --resource-group rg-east-datalake-dev-01 --subscription 8988b176-9eb0-4e96-8956-5e4bb60530cf
+
 
 
 az storage blob tag list --account-name sftpdatalakedev01 --container-name email-scanpending --name smoke-test/smoke.txt --auth-mode login -o table
