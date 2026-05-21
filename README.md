@@ -2,6 +2,15 @@
 F
 
 
+
+exceptions
+| where timestamp > ago(2h)
+| project timestamp, type, outerMessage, innermostMessage, method, operation_Name
+| order by timestamp desc
+
+
+
+
 az storage blob tag list --account-name sftpdatalakedev01 --account-key "$KEY" --container-name email-scanpending --name smoke-test/smoke.txt -o table
 
 
