@@ -1,18 +1,25 @@
 # DSM-Function
 F
 
-
 traces
 | where timestamp > ago(2h)
-| where severityLevel >= 3
-| project timestamp, message, severityLevel, operation_Name
+| where cloud_RoleName has "func-eus2-dev-dsm-01"
+| project timestamp, message, severityLevel, operation_Name, cloud_RoleName
 | order by timestamp desc
-
+| take 50
 
 
 exceptions
 | where timestamp > ago(2h)
-| project timestamp, type, outerMessage, innermostMessage, method, operation_Name
+| project timestamp, type, outerMessage, innermostMessage, operation_Name, cloud_RoleName
+| order by timestamp desc
+| take 50
+
+
+union traces, exceptions, requests
+| where timestamp > ago(24h)
+| where cloud_RoleName has "func-eus2-dev-dsm-01"
+| summarize count() by bin(timestamp, 1h), itemType
 | order by timestamp desc
 
 
