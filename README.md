@@ -2,6 +2,13 @@
 F
 
 
+traces
+| where timestamp > ago(2h)
+| where severityLevel >= 3
+| project timestamp, message, severityLevel, operation_Name
+| order by timestamp desc
+
+
 
 exceptions
 | where timestamp > ago(2h)
